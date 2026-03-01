@@ -9,9 +9,9 @@ CRGB leds[NUM_LEDS];
 
 const int pinL = 2;
 const int pinR = 3;
-const int pinKnight = 5;
+const int pinTail = 5;         
+const int pinKnight = 7;       
 const int pinBrake = 6;
-const int pinTail = 7;
 const int pinSmartBrakeEn = 9;
 
 int half = NUM_LEDS / 2;
@@ -28,7 +28,7 @@ const int debounceDelay = 50;
 int animSpeed = 13;                 
 int offDelay = 180;                 
 int extraFlashes = 3;               
-unsigned long turnColor = 0xFFAF00; 
+unsigned long turnColor = 0xFFBF00; // Gintarinė spalva
 
 void setup() {
   pinMode(pinL, INPUT);
@@ -39,43 +39,40 @@ void setup() {
   pinMode(pinSmartBrakeEn, INPUT);
 
   FastLED.addLeds<LED_TYPE, DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness(200);
+  FastLED.setBrightness(250); //juostos ryskumas
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
 }
 
-// --- TIKROJI ŠIAURĖJANTI KOMETOS UODEGA ---
+// ŠIAURĖJANTI KOMETOS UODEGA
 void shrinkToCenter(int speedMs) {
-  // Ciklas vyksta, kol visi LED užgęsta (pridedame extra žingsnių uodegai)
   for (int i = 0; i < half + 30; i++) {
-    
-    // Einame per visus LED ir blukiname tik tuos, kurie yra "užgesimo zonoje"
     for (int j = 0; j < half; j++) {
       if (j <= i) { 
-        // Kuo toliau į šoną nuo judančio i taško, tuo tamsiau turėtų būti,
-        // bet paprasčiausias būdas yra blukinti viską, kas išeina už i ribų
-        leds[j].fadeToBlackBy(50);                // Kairė pusė gęsta
-        leds[NUM_LEDS - 1 - j].fadeToBlackBy(50); // Dešinė pusė gęsta
+        leds[j].fadeToBlackBy(50);                
+        leds[NUM_LEDS - 1 - j].fadeToBlackBy(50); 
       }
     }
-
     FastLED.show();
     delay(speedMs);
   }
-  
   fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
 }
 
+// PAGRINDINIS REŽIMAS: PIN 7 (pinKnight) valdo Knight Rider
 void handleStaticLights() {
-  if (digitalRead(pinTail) == HIGH) {
-    fill_solid(leds, NUM_LEDS, CHSV(0, 255, 60)); 
+  if (digitalRead(pinKnight) == HIGH) {
+    fadeToBlackBy(leds, NUM_LEDS, 45); //Mažesnis skaičius (pvz., 20): Padarys uodegą ilgą. Didesnis skaičius (pvz., 80): Padarys uodegą trumpą.
+    int pos = beatsin16(15, 0, NUM_LEDS - 1); //Jei norite pakeisti, kaip greitai „akis“ laksto pirmyn-atgal:25=greiciau, 10=leciau
+    leds[pos] = CRGB::Red;
+    if(pos > 0) leds[pos-1] = CRGB::Red; 
+    if(pos < NUM_LEDS-1) leds[pos+1] = CRGB::Red;
   } 
-  else if (digitalRead(pinKnight) == HIGH) {
-    fadeToBlackBy(leds, NUM_LEDS, 45); 
-    int pos = beatsin16(15, 0, NUM_LEDS - 1);
-    leds[pos] = CRGB::Red; 
-  } 
+  // Jei norite, kad PIN 5 (pinTail) rodytų paprastą Tail light, galite pridėti sąlygą čia
+  else if (digitalRead(pinTail) == HIGH) {
+    fill_solid(leds, NUM_LEDS, CHSV(0, 255, 60));
+  }
   else {
     fill_solid(leds, NUM_LEDS, CRGB::Black);
   }
@@ -106,8 +103,7 @@ void runLeft() {
     delay(animSpeed);
   }
   delay(offDelay);
-  CRGB backColor = (digitalRead(pinTail) == HIGH) ? CRGB(CHSV(0, 255, 60)) : CRGB::Black;
-  for (int i = 0; i < half; i++) leds[half - 1 - i] = backColor;
+  for (int i = 0; i < half; i++) leds[half - 1 - i] = CRGB::Black;
   FastLED.show();
   delay(offDelay);
   if (digitalRead(pinL) == LOW) {
@@ -123,8 +119,7 @@ void runRight() {
     delay(animSpeed);
   }
   delay(offDelay);
-  CRGB backColor = (digitalRead(pinTail) == HIGH) ? CRGB(CHSV(0, 255, 60)) : CRGB::Black;
-  for (int i = 0; i < half; i++) leds[half + i] = backColor;
+  for (int i = 0; i < half; i++) leds[half + i] = CRGB::Black;
   FastLED.show();
   delay(offDelay);
   if (digitalRead(pinR) == LOW) {
@@ -141,8 +136,7 @@ void runHazard() {
     delay(animSpeed);
   }
   delay(offDelay);
-  CRGB backColor = (digitalRead(pinTail) == HIGH) ? CRGB(CHSV(0, 255, 60)) : CRGB::Black;
-  fill_solid(leds, NUM_LEDS, backColor);
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
   FastLED.show();
   delay(offDelay);
   stateLT = 0; stateRT = 0;
@@ -152,11 +146,10 @@ void loop() {
   bool readL = digitalRead(pinL);
   bool readR = digitalRead(pinR);
   bool readBrake = digitalRead(pinBrake);
-  bool currentStatic = (digitalRead(pinTail) == HIGH || digitalRead(pinKnight) == HIGH);
+  bool currentStatic = (digitalRead(pinKnight) == HIGH || digitalRead(pinTail) == HIGH);
 
-  // Stabdžių užgesimas
   if (!readBrake && brakeActive) {
-    shrinkToCenter(5); // Padidintas greitis geresniam vaizdui
+    shrinkToCenter(15);
     brakeActive = false;
   }
 
@@ -182,7 +175,7 @@ void loop() {
   } 
   else {
     if (lastStaticState == true && currentStatic == false) {
-      shrinkToCenter(5);
+      shrinkToCenter(15);
     }
     handleStaticLights();
   }
